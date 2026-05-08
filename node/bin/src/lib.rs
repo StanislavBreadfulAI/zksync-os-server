@@ -55,7 +55,7 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::watch;
-use zksync_os_backpressure::{BackpressureMonitor, PipelineTracker};
+use zksync_os_backpressure::{BackpressureMonitor, PipelineSnapshot, PipelineTracker};
 use zksync_os_base_token_adjuster::BaseTokenPriceUpdater;
 use zksync_os_batch_verification::{
     BatchVerificationConfig as BatchVerificationPolicyConfig, BatchVerificationPipelineStep,
@@ -108,7 +108,7 @@ use zksync_os_sequencer::execution::block_context_provider::BlockContextProvider
 use zksync_os_sequencer::execution::{
     BlockApplier, BlockCanonizer, BlockExecutor, FeeParams, FeeProvider,
 };
-use zksync_os_status_server::run_status_server;
+use zksync_os_status_server::{StatusServerState, run_status_server};
 use zksync_os_storage::db::{BlockReplayStorage, ExecutedBatchStorage};
 use zksync_os_storage::in_memory::Finality;
 use zksync_os_storage::lazy::RepositoryManager;
@@ -939,7 +939,7 @@ pub async fn run<State: ReadStateHistory + WriteState + StateInitializer + Clone
         );
     }
 
-    let backpressure_acceptance_rx = if node_role.is_main() {
+    let (backpressure_acceptance_rx, pipeline_snapshot_rx) = if node_role.is_main() {
         run_main_node_pipeline(
             &config,
             sl_provider.clone(),
@@ -1006,8 +1006,13 @@ pub async fn run<State: ReadStateHistory + WriteState + StateInitializer + Clone
             .address
             .parse()
             .expect("malformed `status_server.address`");
+        let status_state = StatusServerState {
+            stop_receiver: stop_receiver.clone(),
+            acceptance_state: combined_acceptance_rx.clone(),
+            pipeline_snapshot: pipeline_snapshot_rx,
+        };
         runtime.spawn_critical_with_graceful_shutdown_signal("status server", |shutdown| {
-            run_status_server(addr, shutdown)
+            run_status_server(addr, shutdown, status_state)
         });
     }
 
@@ -1069,7 +1074,10 @@ async fn run_main_node_pipeline(
     verify_result_rx: tokio::sync::mpsc::Receiver<PeerVerifyBatchResult>,
     last_finalized_migration: watch::Receiver<u64>,
     migration_triggered: watch::Sender<Option<u64>>,
-) -> watch::Receiver<TransactionAcceptanceState> {
+) -> (
+    watch::Receiver<TransactionAcceptanceState>,
+    watch::Receiver<PipelineSnapshot>,
+) {
     let pubdata_mode = config
         .l1_sender_config
         .pubdata_mode
@@ -1145,7 +1153,9 @@ async fn run_main_node_pipeline(
         let components = pipeline.components();
         pipeline.spawn();
         let snapshot_rx = PipelineTracker::spawn(runtime, components);
-        return monitor.spawn(runtime, snapshot_rx);
+        let snapshot_for_status = snapshot_rx.clone();
+        let acceptance_rx = monitor.spawn(runtime, snapshot_rx);
+        return (acceptance_rx, snapshot_for_status);
     }
 
     tracing::info!("Initializing ProofStorage");
@@ -1288,7 +1298,9 @@ async fn run_main_node_pipeline(
     let components = pipeline.components();
     pipeline.spawn();
     let snapshot_rx = PipelineTracker::spawn(runtime, components);
-    monitor.spawn(runtime, snapshot_rx)
+    let snapshot_for_status = snapshot_rx.clone();
+    let acceptance_rx = monitor.spawn(runtime, snapshot_rx);
+    (acceptance_rx, snapshot_for_status)
 }
 
 /// Only for EN - we still populate channels destined for the batcher subsystem -
@@ -1312,7 +1324,10 @@ async fn run_en_pipeline(
     chain_id: u64,
     verify_batch_rx: tokio::sync::mpsc::Receiver<PeerVerifyBatch>,
     outgoing_verify_results: tokio::sync::broadcast::Sender<PeerVerifyBatchResult>,
-) -> watch::Receiver<TransactionAcceptanceState> {
+) -> (
+    watch::Receiver<TransactionAcceptanceState>,
+    watch::Receiver<PipelineSnapshot>,
+) {
     let internal_config_manager = init_and_report_internal_config_manager(
         config
             .general_config
@@ -1410,7 +1425,9 @@ async fn run_en_pipeline(
         "clear failing block config",
         clear_failing_block_config_task(finality, internal_config_manager),
     );
-    monitor.spawn(runtime, snapshot_rx)
+    let snapshot_for_status = snapshot_rx.clone();
+    let acceptance_rx = monitor.spawn(runtime, snapshot_rx);
+    (acceptance_rx, snapshot_for_status)
 }
 
 fn block_hashes_for_first_block(repositories: &dyn ReadRepository) -> BlockHashes {

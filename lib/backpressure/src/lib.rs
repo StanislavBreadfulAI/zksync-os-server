@@ -7,5 +7,7 @@ pub use config::{
     BackpressureConfig, ComponentId, DEFAULT_BATCH_DIFF_LIMIT, DEFAULT_BLOCK_DIFF_LIMIT,
     PipelineCondition,
 };
-pub use monitor::{AdjacentSnapshot, BackpressureMonitor, PipelineSnapshot};
+pub use monitor::{
+    AdjacentSnapshot, BackpressureMonitor, PipelineSnapshot, compute_adjacent_snapshots,
+};
 pub use tracker::PipelineTracker;

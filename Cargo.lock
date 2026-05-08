@@ -14220,6 +14220,7 @@ version = "0.20.0"
 dependencies = [
  "futures",
  "reth-tasks",
+ "serde",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -14740,6 +14741,7 @@ dependencies = [
  "async-trait",
  "futures",
  "reth-tasks",
+ "serde",
  "tokio",
  "tracing",
  "vise",
@@ -15134,8 +15136,12 @@ dependencies = [
  "axum",
  "reth-tasks",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
+ "zksync_os_backpressure",
+ "zksync_os_observability",
+ "zksync_os_types",
 ]
 
 [[package]]
