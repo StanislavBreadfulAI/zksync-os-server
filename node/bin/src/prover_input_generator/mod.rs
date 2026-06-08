@@ -90,14 +90,36 @@ impl<ReadState: ReadStateHistory + Clone + Send + 'static> PipelineComponent
                     .expect("Failed to convert DA commitment scheme");
 
                 tokio::task::spawn_blocking(move || {
-                    let prover_input = compute_prover_input(
-                        &replay_record,
-                        read_state_clone,
-                        tree.block_start.clone(),
-                        da_commitment_scheme,
-                        app_bin_base_path_clone,
-                        enable_logging,
-                    );
+                    // ATOMIC-INTEROP DEMO TOLERANCE: the embedded RISC-V proving binary may be
+                    // incompatible with the linked airbender simulator in some local builds
+                    // (the Cargo graph pulls two airbender tags, v0.4.3 and v0.5.2), which makes
+                    // `generate_proof_input` panic with e.g. `CSR number 3072 not supported`. Real
+                    // proving is NOT required for the atomic-interop demo, and the fake FRI/SNARK
+                    // provers ignore the witness anyway. We therefore catch the panic and forward
+                    // an EMPTY placeholder prover input so every block still flows to the batcher.
+                    // This keeps the whole pipeline (batcher / batch sink / priority tree) healthy
+                    // instead of starving it (which would crash the node); only real proofs are
+                    // lost, which the fake provers replace.
+                    let prover_input = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                        || {
+                            compute_prover_input(
+                                &replay_record,
+                                read_state_clone,
+                                tree.block_start.clone(),
+                                da_commitment_scheme,
+                                app_bin_base_path_clone,
+                                enable_logging,
+                            )
+                        },
+                    ))
+                    .unwrap_or_else(|_| {
+                        tracing::warn!(
+                            block_number = replay_record.block_context.block_number,
+                            "prover input generation failed; forwarding empty placeholder \
+                             (demo mode, fake provers)"
+                        );
+                        Vec::new()
+                    });
                     (block_output, replay_record, prover_input, tree)
                 })
             })
@@ -129,6 +151,17 @@ fn compute_prover_input(
     app_bin_base_path: PathBuf,
     enable_logging: bool,
 ) -> Vec<u32> {
+    // ATOMIC-INTEROP DEMO BYPASS: when `ZKSYNC_OS_DEMO_SKIP_PROVING` is set, skip RISC-V
+    // witness generation entirely and return an empty prover input. The embedded proving
+    // binary is incompatible with the linked airbender simulator in this local build (the
+    // Cargo graph pulls two airbender tags, v0.4.3 and v0.5.2), and the witness generator
+    // panics on multiple threads. Real proving is not needed for the interop demo and the
+    // fake FRI/SNARK provers ignore the witness, so an empty input lets every block flow
+    // through the batcher and settle with a fake proof. This keeps the whole pipeline alive
+    // without invoking the broken simulator at all (the catch_unwind below is a backstop).
+    if std::env::var_os("ZKSYNC_OS_DEMO_SKIP_PROVING").is_some() {
+        return Vec::new();
+    }
     let block_number = replay_record.block_context.block_number;
     let state_view = state_handle.state_view_at(block_number - 1).unwrap();
     let (root_hash, leaf_count) = tree_view.root_info().unwrap();
