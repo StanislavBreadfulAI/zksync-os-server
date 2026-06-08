@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.20.7](https://github.com/matter-labs/zksync-os-server/compare/v0.20.6...v0.20.7) (2026-06-08)
+
+
+### Bug Fixes
+
+* **ci:** set finalized block polling interval to 100ms in local_dev.yaml ([#1354](https://github.com/matter-labs/zksync-os-server/issues/1354)) ([93d8d94](https://github.com/matter-labs/zksync-os-server/commit/93d8d94404a98c62683d24272292926b4660f945))
+
+
+### Performance Improvements
+
+* fetch committed batch data elements in parallel ([#1361](https://github.com/matter-labs/zksync-os-server/issues/1361)) ([c613906](https://github.com/matter-labs/zksync-os-server/commit/c61390653d3b6ebe9ad4841d5ea72313121a207e))
+
 ## [0.20.6](https://github.com/matter-labs/zksync-os-server/compare/v0.20.5...v0.20.6) (2026-06-03)
 
 
