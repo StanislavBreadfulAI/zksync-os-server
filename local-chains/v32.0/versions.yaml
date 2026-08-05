@@ -1,25 +1,27 @@
 general:
   protocol_version: "v31.0"
   variant: "atomic-interop (IMT bundle model)"
-  genesis_root: "0x38643169753309ba1959843595e64188f871d11808e55b2759a73db1ac86afb0"
+  genesis_root: "0x9586d4d7eff137336a70f82624b104b1d9dff0bd40bc0d3d68af578c734c4e92"
 
 # This preset's genesis.json + l1-state.json.gz + per-chain configs all come from ONE
 # consistent atomic deploy of two L1-settling chains (6565, 6566). Regenerate them
 # together via generate-atomic-multichain.sh — never swap genesis without the matching L1 state.
 
 era-contracts:
-  # StanislavBreadfulAI/era-contracts fork — the same commit the atomic-interop integration tests
-  # build their contracts from (execute encoding version 2, timestamped interop roots, the
-  # `salt`/`provesAgainstBeginRoot` struct fields). Re-point at matter-labs once the branch lands.
-  branch: "ad-atomic-interop-integration"
-  sha: "c67894b970a0dac6fe9144d8ebf4b0806e15a9af"
+  # StanislavBreadfulAI/era-contracts fork — the reduced (release) atomic-interop lineage with the
+  # L2AssetTracker deleted: matter-labs vg/l2at-removal (#2309) + the #2360 follow-up (base-token
+  # bookkeeping in L2NativeTokenVault/BaseTokenHolder, 0x1000f reserved gap in genesis).
+  # Re-point at matter-labs once #2309/#2360 merge.
+  branch: "sb-2309-review-followup"
+  sha: "ab61cd0c9e2bc9112b60aa0b01d5dd6c5a7fb749"
 
 zksync-os-integration-tests:
   # Provides the zk-deployer CLI (bootstrap + apply + server-config) used to generate the artifacts.
-  branch: "atomic-interop-work"
-  sha: "a3edd70"
+  # StanislavBreadfulAI fork, pinned to the same reduced contracts branch.
+  branch: "sb-atomic-interop-reduced"
+  sha: "4e9f129"
 
 zksync-os-server:
   # The atomic server (this repo): serves zks_getImtInclusionProof / zks_getImtLowNullifierIndex
   # and zks_getL2ToL1LogProof(messageRoot) used to build the per-leg atomic finality proofs.
-  branch: "ad-atomic-interop-timestamps"
+  branch: "sb-atomic-interop-reduced-0.4.0"

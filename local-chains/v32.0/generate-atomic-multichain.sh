@@ -18,9 +18,9 @@
 # (BlockOutOfRangeError at boot).
 #
 # REQUIREMENTS (sibling repos READ-ONLY except their build artifacts):
-#   IT_ROOT   zksync-os-integration-tests checkout (branch kl/l1-settled-interop-proof) with
+#   IT_ROOT   zksync-os-integration-tests checkout (branch sb-atomic-interop-reduced) with
 #             `zk-deployer` built:  (cd "$IT_ROOT" && cargo build -p zk-deployer --bin zk-deployer)
-#   ERA_ROOT  era-contracts checkout (branch atomic-imt-interop); the deployer runs its
+#   ERA_ROOT  era-contracts checkout (branch sb-2309-review-followup, the reduced lineage); the deployer runs its
 #             `build-contracts` against it (forge build).  PROTOCOL_CONTRACTS_ROOT=$ERA_ROOT.
 #   anvil v1.5.x in PATH (run_local.sh also uses host anvil). The graceful --dump-state with
 #   --preserve-historical-states is REQUIRED so historical eth_getCode works after reload.
@@ -29,7 +29,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"           # local-chains/v32.0
 PRESET="$HERE/multi_chain"
 IT_ROOT="${IT_ROOT:?set IT_ROOT to the zksync-os-integration-tests checkout}"
-ERA_ROOT="${ERA_ROOT:?set ERA_ROOT to the era-contracts atomic-imt-interop checkout}"
+ERA_ROOT="${ERA_ROOT:?set ERA_ROOT to the era-contracts reduced-lineage (sb-2309-review-followup) checkout}"
 ANVIL_PORT="${ANVIL_PORT:-28545}"
 SEED="${ECOSYSTEM_SEED:-atomic-multichain}"
 DEPLOYER_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"  # anvil #0
