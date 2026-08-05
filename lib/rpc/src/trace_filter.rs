@@ -1,7 +1,15 @@
 use alloy::primitives::{Address, address};
 
+/// The (former) L2AssetTracker address. The release contracts lineage removed the
+/// L2AssetTracker system contract (era-contracts #2309), leaving 0x1000f as an empty
+/// reserved gap — base-token L1-deposit bookkeeping is intentionally unrecorded on
+/// ZKsync OS there. The pinned zksync-os still injects its
+/// `handleFinalizeBaseTokenBridgingOnL2` root frame at this address on every L1
+/// base-token mint (the call to the empty address succeeds silently), so the trace
+/// filter below stays load-bearing for both lineages.
 pub(crate) const ASSET_TRACKER_ADDRESS: Address =
     address!("0x000000000000000000000000000000000001000f");
+/// `handleFinalizeBaseTokenBridgingOnL2(uint256,uint256)`.
 pub(crate) const ASSET_TRACKER_ROOT_SELECTOR: [u8; 4] = [0x03, 0x11, 0x7c, 0x8c];
 /// The L2 base token system contract, which is the caller of the bootloader-injected
 /// asset-tracker root frames.
